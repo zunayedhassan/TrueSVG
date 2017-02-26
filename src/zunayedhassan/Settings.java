@@ -17,4 +17,7 @@ public class Settings {
     public static final String[][]  FONTS                = new String[][] { };
 
     public static final boolean     IS_SCENE_TRANSPARENT = false;
+    
+    // Test
+    public static final boolean     IS_ZOOM_TEST         = true;
 }

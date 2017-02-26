@@ -60,6 +60,10 @@ public class RootUI extends BaseUI {
     private void _setSvg(Svg svg) {
         this._scrollPane.setContent(svg);
         CommonTools.PRIMARY_STAGE.setTitle(svg.GetTitle());
+        
+        if (Settings.IS_ZOOM_TEST) {
+            this._test(svg);
+        }
     }
     
     // Open File
@@ -69,5 +73,12 @@ public class RootUI extends BaseUI {
         if (choosenFile != null) {
             this._setSvg(new Svg(choosenFile.getAbsoluteFile().toString()));
         }
+    }
+    
+    private void _test(Svg svg) {
+        svg.setScaleX(4);
+        svg.setScaleY(4);
+        svg.setTranslateX(svg.GetWidth() * 1.5);
+        svg.setTranslateY(svg.GetHeight() * 1.5);
     }
 }

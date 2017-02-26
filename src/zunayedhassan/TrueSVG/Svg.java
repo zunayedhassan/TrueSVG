@@ -29,6 +29,7 @@ import javafx.scene.shape.Path;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.image.WritableImage;
+import javafx.scene.layout.HBox;
 import javafx.scene.shape.QuadCurveTo;
 import javafx.scene.shape.CubicCurveTo;
 import javafx.scene.shape.Line;
@@ -319,7 +320,7 @@ public class Svg extends Pane {
                 }
                 
                 this.Add(textPane, group);
-                this._readText(element.getChildNodes().item(0), style, textPane);
+                this._readText(element.getChildNodes(), style, textPane);
             }
             // Path
             else if (svgTag.equals("path")) {
@@ -880,6 +881,10 @@ public class Svg extends Pane {
     }
     
     private void _readSvgObjectStyle(String style, Shape shape, Pane parent) {
+        this._readSvgObjectStyle(style, shape, parent, true);
+    }
+    
+    private void _readSvgObjectStyle(String style, Shape shape, Pane parent, boolean isTextVerticalPositionGoingToChnage) {
         ArrayList<String> styleData = this._getStyleData(style);
         
         shape.setStroke(Color.TRANSPARENT);
@@ -1050,9 +1055,16 @@ public class Svg extends Pane {
             // Font Size
             else if (propertyName.equals("font-size")) {
                 // Example: font-size:40px
-                double fontSize = this._getConvertedValue(currentUnit, _parseDouble(propertyValue));;
+                double fontSize = this._getConvertedValue(currentUnit, _parseDouble(propertyValue));
+                
                 shape.setStyle(shape.getStyle() + "-fx-font-size: " + fontSize +";");
-                shape.setTranslateY(shape.getTranslateY() - fontSize);
+                
+                if (isTextVerticalPositionGoingToChnage) {
+                    shape.setTranslateY(shape.getTranslateY() - fontSize);
+                }
+                else {
+                    shape.setTranslateY(shape.getTranslateY() + (fontSize * 2));
+                }
             }
             // Font Weight
             else if (propertyName.equals("font-weight")) {
@@ -1072,37 +1084,78 @@ public class Svg extends Pane {
         }
     }
     
-    void _readText(org.w3c.dom.Node node, String parentStyle, TextLayout parent){
-        if (node == null) {
-            return;
-        }
-
-        for (int i = 0; i < node.getChildNodes().getLength(); i++) {
-            String textContent = node.getChildNodes().item(i).getTextContent();
-            Text   text        = new Text(textContent);
+    void _readText(org.w3c.dom.NodeList nodes, String parentStyle, TextLayout parent) {
+        for (int j = 0; j < nodes.getLength(); j++) {
+            org.w3c.dom.Node node = nodes.item(j);
             
-            parent.getChildren().add(text);
-            this._readSvgObjectStyle(parentStyle, text, parent);
-            
-            String currentStyle = null;
-            
-            if (((Element) node).getAttribute("style") != null) {
-                currentStyle = ((Element) node).getAttribute("style");
+            if (node == null) {
+                return;
             }
+            
+            double prevTextX = 0;
+            double prevTextY = 0;
 
-            if (currentStyle != null) {
-                this._readSvgObjectStyle(currentStyle, text, parent);
-                this._addToStyleHistory(((Element) node), text);
-            }
-
-            if (node.getChildNodes().getLength() > 1) {
-                org.w3c.dom.Node nextNode = node.getChildNodes().item(++i);
+            for (int i = 0; i < node.getChildNodes().getLength(); i++) {
+                String textContent = node.getChildNodes().item(i).getTextContent();
+                Text   text        = new Text(textContent);
                 
-                if (nextNode.getNodeType() == Node.ELEMENT_NODE) {
-                    Element element = (Element) nextNode;
-                    String  style   = element.getAttribute("style");
+                double x = Double.parseDouble(node.getAttributes().getNamedItem("x").getNodeValue());
+                double y = Double.parseDouble(node.getAttributes().getNamedItem("y").getNodeValue());
+                
+                HBox textHBox = null;
+                
+                if ((prevTextX != x) && (prevTextY != y)) {
+                    textHBox = new HBox();
+                    
+                    textHBox.setTranslateX(x - parent.getTranslateX());
+                    textHBox.setTranslateY(y - parent.getTranslateY());
+    
+                    parent.getChildren().add(textHBox);
+                }
+                else if (parent.getChildren().size() > 0) {
+                    textHBox = (HBox) parent.getChildren().get(parent.getChildren().size() - 1);
 
-                    this._readText(element, parentStyle, parent);
+                    textHBox.setTranslateX(x - parent.getTranslateX());
+                    textHBox.setTranslateY(y - parent.getTranslateY());
+                }
+                
+                prevTextX = x;
+                prevTextY = y;
+
+                if (textHBox != null) {
+                    textHBox.getChildren().add(text);  
+                }
+                
+                // Read Style
+                String currentStyle = null;
+                org.w3c.dom.Node item = node.getChildNodes().item(i);
+                
+                if (item.getNodeType() == Node.ELEMENT_NODE) {
+                    org.w3c.dom.Element element = (org.w3c.dom.Element) item;
+                    currentStyle = element.getAttribute("style");
+                }
+                else if ((item.getNodeType() == Node.TEXT_NODE) &&
+                         (item.getAttributes() != null)) {
+                    
+                    currentStyle = item.getAttributes().getNamedItem("style").getNodeValue();
+                    
+                }
+                
+                if (parentStyle != null) {
+                    this._readSvgObjectStyle(parentStyle, text, parent);
+                }
+                
+                if (node.getAttributes() != null) {
+                    String localStyle = node.getAttributes().getNamedItem("style").getNodeValue();
+                    
+                    if (localStyle != null) {
+                        this._readSvgObjectStyle(localStyle, text, parent, false);
+                    }
+                }
+                
+                if (currentStyle != null) {
+                    this._readSvgObjectStyle(currentStyle, text, parent, false);
+                    this._addToStyleHistory(((Element) node), text);
                 }
             }
         }
