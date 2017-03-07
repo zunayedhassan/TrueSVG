@@ -6,6 +6,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import javafx.embed.swing.SwingFXUtils;
+import javafx.geometry.Insets;
 import javafx.scene.layout.Pane;
 import javax.xml.parsers.ParserConfigurationException;
 import javafx.scene.paint.Color;
@@ -29,6 +30,9 @@ import javafx.scene.shape.Path;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.image.WritableImage;
+import javafx.scene.layout.Background;
+import javafx.scene.layout.BackgroundFill;
+import javafx.scene.layout.CornerRadii;
 import javafx.scene.layout.HBox;
 import javafx.scene.shape.QuadCurveTo;
 import javafx.scene.shape.CubicCurveTo;
@@ -49,7 +53,7 @@ import org.w3c.dom.Document;
 
 /**
  *
- * @author ZUNAYED_PC
+ * @author Zunayed Hassan
  */
 public class Svg extends Pane {
     private static enum _UNIT {
@@ -279,9 +283,8 @@ public class Svg extends Pane {
                 double x      = this._getAttributeValueAsDouble(element, "x");
                 double y      = this._getAttributeValueAsDouble(element, "y");
                 
-                TextLayout textPane = new TextLayout(x, y);
-                
-                String transform = this._getAttributeValueAsString(element, "transform");
+                TextLayout textPane  = new TextLayout(0, 0);
+                String     transform = this._getAttributeValueAsString(element, "transform");
                 
                 // Translate
                 if (transform.contains("translate")) {
@@ -319,8 +322,9 @@ public class Svg extends Pane {
                     textPane.getTransforms().add(new Shear(skewX, skewY));
                 }
                 
+                
                 this.Add(textPane, group);
-                this._readText(element.getChildNodes(), style, textPane);
+                this._readText(element, textPane);
             }
             // Path
             else if (svgTag.equals("path")) {
@@ -881,10 +885,6 @@ public class Svg extends Pane {
     }
     
     private void _readSvgObjectStyle(String style, Shape shape, Pane parent) {
-        this._readSvgObjectStyle(style, shape, parent, true);
-    }
-    
-    private void _readSvgObjectStyle(String style, Shape shape, Pane parent, boolean isTextVerticalPositionGoingToChnage) {
         ArrayList<String> styleData = this._getStyleData(style);
         
         shape.setStroke(Color.TRANSPARENT);
@@ -1058,13 +1058,7 @@ public class Svg extends Pane {
                 double fontSize = this._getConvertedValue(currentUnit, _parseDouble(propertyValue));
                 
                 shape.setStyle(shape.getStyle() + "-fx-font-size: " + fontSize +";");
-                
-                if (isTextVerticalPositionGoingToChnage) {
-                    shape.setTranslateY(shape.getTranslateY() - fontSize);
-                }
-                else {
-                    shape.setTranslateY(shape.getTranslateY() + (fontSize * 2));
-                }
+                shape.setTranslateY(shape.getTranslateY());
             }
             // Font Weight
             else if (propertyName.equals("font-weight")) {
@@ -1084,82 +1078,7 @@ public class Svg extends Pane {
         }
     }
     
-    void _readText(org.w3c.dom.NodeList nodes, String parentStyle, TextLayout parent) {
-        for (int j = 0; j < nodes.getLength(); j++) {
-            org.w3c.dom.Node node = nodes.item(j);
-            
-            if (node == null) {
-                return;
-            }
-            
-            double prevTextX = 0;
-            double prevTextY = 0;
-
-            for (int i = 0; i < node.getChildNodes().getLength(); i++) {
-                String textContent = node.getChildNodes().item(i).getTextContent();
-                Text   text        = new Text(textContent);
-                
-                double x = Double.parseDouble(node.getAttributes().getNamedItem("x").getNodeValue());
-                double y = Double.parseDouble(node.getAttributes().getNamedItem("y").getNodeValue());
-                
-                HBox textHBox = null;
-                
-                if ((prevTextX != x) && (prevTextY != y)) {
-                    textHBox = new HBox();
-                    
-                    textHBox.setTranslateX(x - parent.getTranslateX());
-                    textHBox.setTranslateY(y - parent.getTranslateY());
     
-                    parent.getChildren().add(textHBox);
-                }
-                else if (parent.getChildren().size() > 0) {
-                    textHBox = (HBox) parent.getChildren().get(parent.getChildren().size() - 1);
-
-                    textHBox.setTranslateX(x - parent.getTranslateX());
-                    textHBox.setTranslateY(y - parent.getTranslateY());
-                }
-                
-                prevTextX = x;
-                prevTextY = y;
-
-                if (textHBox != null) {
-                    textHBox.getChildren().add(text);  
-                }
-                
-                // Read Style
-                String currentStyle = null;
-                org.w3c.dom.Node item = node.getChildNodes().item(i);
-                
-                if (item.getNodeType() == Node.ELEMENT_NODE) {
-                    org.w3c.dom.Element element = (org.w3c.dom.Element) item;
-                    currentStyle = element.getAttribute("style");
-                }
-                else if ((item.getNodeType() == Node.TEXT_NODE) &&
-                         (item.getAttributes() != null)) {
-                    
-                    currentStyle = item.getAttributes().getNamedItem("style").getNodeValue();
-                    
-                }
-                
-                if (parentStyle != null) {
-                    this._readSvgObjectStyle(parentStyle, text, parent);
-                }
-                
-                if (node.getAttributes() != null) {
-                    String localStyle = node.getAttributes().getNamedItem("style").getNodeValue();
-                    
-                    if (localStyle != null) {
-                        this._readSvgObjectStyle(localStyle, text, parent, false);
-                    }
-                }
-                
-                if (currentStyle != null) {
-                    this._readSvgObjectStyle(currentStyle, text, parent, false);
-                    this._addToStyleHistory(((Element) node), text);
-                }
-            }
-        }
-    }
     
     private double _getAttributeValueAsDouble(Element element, String attribute) {
         return this._getAttributeValueAsDouble(element, attribute, 0.0);
@@ -1396,11 +1315,11 @@ public class Svg extends Pane {
                          (j < pathCommands.size()) && this._isDigit(pathCommands.get(j));
                           j += 4) {
                         
-                        double controlX   =  _parseDouble(pathCommands.get(j + 0));
-                        double controlY   =  _parseDouble(pathCommands.get(j + 1));
+                        double controlX   =  this._parseDouble(pathCommands.get(j + 0));
+                        double controlY   =  this._parseDouble(pathCommands.get(j + 1));
 
-                        double endX       =  _parseDouble(pathCommands.get(j + 2));
-                        double endY       =  _parseDouble(pathCommands.get(j + 3));
+                        double endX       =  this._parseDouble(pathCommands.get(j + 2));
+                        double endY       =  this._parseDouble(pathCommands.get(j + 3));
                         
                         if (command.equals("q")) {
                             controlX      += lastRelativeX;
@@ -1426,11 +1345,11 @@ public class Svg extends Pane {
                          (j < pathCommands.size()) && this._isDigit(pathCommands.get(j));
                           j += 4) {
                         
-                        double controlX   =  _parseDouble(pathCommands.get(j + 0));
-                        double controlY   =  _parseDouble(pathCommands.get(j + 1));
+                        double controlX   =  this._parseDouble(pathCommands.get(j + 0));
+                        double controlY   =  this._parseDouble(pathCommands.get(j + 1));
 
-                        double endX       =  _parseDouble(pathCommands.get(j + 2));
-                        double endY       =  _parseDouble(pathCommands.get(j + 3));
+                        double endX       =  this._parseDouble(pathCommands.get(j + 2));
+                        double endY       =  this._parseDouble(pathCommands.get(j + 3));
                         
                         if (command.equals("s")) {
                             controlX      += lastRelativeX;
@@ -1456,17 +1375,17 @@ public class Svg extends Pane {
                          (j < pathCommands.size()) && this._isDigit(pathCommands.get(j));
                           j += 7) {
                         
-                        double  rx             = _parseDouble(pathCommands.get(j + 0));
-                        double  ry             = _parseDouble(pathCommands.get(j + 1));
+                        double  rx             = this._parseDouble(pathCommands.get(j + 0));
+                        double  ry             = this._parseDouble(pathCommands.get(j + 1));
                         
-                        double  xAxisRotation  = _parseDouble(pathCommands.get(j + 2));
+                        double  xAxisRotation  = this._parseDouble(pathCommands.get(j + 2));
                         
-                        boolean largeArcFlag   = (_parseDouble(pathCommands.get(j + 3)) == 0) ? false : true;
+                        boolean largeArcFlag   = (this._parseDouble(pathCommands.get(j + 3)) == 0) ? false : true;
                         
-                        boolean sweepFlag      = (_parseDouble(pathCommands.get(j + 4)) == 0) ? false : true;
+                        boolean sweepFlag      = (this._parseDouble(pathCommands.get(j + 4)) == 0) ? false : true;
                         
-                        double  x              = _parseDouble(pathCommands.get(j + 5));
-                        double  y              = _parseDouble(pathCommands.get(j + 6));
+                        double  x              = this._parseDouble(pathCommands.get(j + 5));
+                        double  y              = this._parseDouble(pathCommands.get(j + 6));
                         
                         if (command.equals("a")) {
                             x                  += lastRelativeX;
@@ -1522,8 +1441,8 @@ public class Svg extends Pane {
             // If Digit
             else {
                 if (lastCommand.toLowerCase().equals("m")) {
-                    double x      =  _parseDouble(pathCommands.get(i + 0));
-                    double y      =  _parseDouble(pathCommands.get(i + 1));
+                    double x      =  this._parseDouble(pathCommands.get(i + 0));
+                    double y      =  this._parseDouble(pathCommands.get(i + 1));
                     
                     if (lastCommand.equals("m")) {
                         x         += lastRelativeX;
@@ -1728,6 +1647,167 @@ public class Svg extends Pane {
         }
     }
     
+    private void _readText(org.w3c.dom.Element element, TextLayout parent) {
+        for (int i = 0; i < element.getChildNodes().getLength(); i++) {
+            org.w3c.dom.Node node = element.getChildNodes().item(i);
+            
+            // <text id="XMLID_1_" transform="matrix(1 0 0 1 25.6196 31.7744)" class="st0 st1">Hello World</text>
+            if (node.getNodeType() == Node.TEXT_NODE) {
+                String text = node.getTextContent();
+                Text textPane = new Text(text);
+                parent.Add(textPane);
+            }
+            //  <text x="0" y="0"><tspan x="14.363094" y="21.077381">Hello World</tspan></text>
+            else if (node.getNodeType() == Node.ELEMENT_NODE) {
+                org.w3c.dom.Element tspan = (org.w3c.dom.Element) node;
+                
+                /*
+                
+                <text transform="matrix(1 0 0 1 10 13)">
+                    <tspan x="0"    y="0"    class="st0 st1"    >Hello  </tspan>
+                    <tspan x="28.6" y="0"    class="st2 st0 st1">Cruel  </tspan>
+                    <tspan x="55"   y="0"    class="st0 st1"    >       </tspan>
+                    <tspan x="0"    y="43.2" class="st3 st0 st1">world  </tspan>
+                    <tspan x="28.9" y="43.2" class="st0 st1"    >       </tspan>
+                    <tspan x="31.5" y="43.2" class="st4 st0 st1">again  </tspan>
+                </text>
+                
+                */
+                if (tspan.getChildNodes().getLength() == 1) {
+                    double x    = this._getAttributeValueAsDouble(tspan, "x");
+                    double y    = this._getAttributeValueAsDouble(tspan, "y");
+                    String text = tspan.getTextContent();
+                    
+                    Text textPane = new Text(text);
+                    textPane.setTranslateX(x);
+                    textPane.setTranslateY(y);
+                    parent.Add(textPane);
+                    
+                    // Read CSS Styles
+                    this._addToStyleHistory(element, textPane);
+                    this._addToStyleHistory(tspan, textPane);
+                    
+                    String textElementStyle = this._getAttributeValueAsString(element, "style");
+
+                    if (textElementStyle != null) {
+                        this._readSvgObjectStyle(textElementStyle, textPane, parent);
+                    }
+                    
+                    String tspanStyle = tspan.getAttribute("style");
+                    
+                    if ((tspanStyle != null) && !tspanStyle.trim().equals("")) {
+                        this._readSvgObjectStyle(tspanStyle, textPane, parent);
+                    }
+                }
+                /*
+                
+                <text
+                    id="text4507"
+                    y="8.6041641"
+                    x="-0.79375064"
+                    style="font-style:normal;font-weight:normal;font-size:10.58333302px;line-height:19.76437569px;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.26458332px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+                    xml:space="preserve">
+                        <tspan
+                            style="stroke-width:0.26458332px"
+                            y="8.6041641"
+                            x="-0.79375064"
+                            id="tspan4505">Hello 
+                                <tspan
+                                    id="tspan4509"
+                                    style="fill:#de8787">World
+                                </tspan>
+                                <tspan
+                                    id="tspan4511"
+                                    style="fill:#ff9955">
+                                </tspan>
+                        </tspan>
+                
+                        <tspan
+                            id="tspan4521"
+                            style="stroke-width:0.26458332px"
+                            y="28.36854"
+                            x="-0.79375064">
+                                <tspan
+                                    id="tspan4523"
+                                    style="fill:#ff9955">
+                                </tspan>
+                        </tspan>
+                
+                        <tspan
+                            id="tspan4526"
+                            style="stroke-width:0.26458332px"
+                            y="48.132915"
+                            x="-0.79375064">
+                            <tspan
+                                id="tspan4528"
+                                style="fill:#ff9955">Cruel
+                            </tspan>
+                            <tspan
+                                id="tspan4513"
+                                style="fill:#55ff99">Again
+                            </tspan>
+                        </tspan>
+                </text>
+                
+                */
+                else if (tspan.getChildNodes().getLength() > 1)  {
+                    this._readTSpan(tspan, parent, element);
+                }
+            }
+        }
+    }
+    
+    private void _readTSpan(org.w3c.dom.Node tspan, TextLayout parent, org.w3c.dom.Element textElement) {
+        double prevX = 0;
+        double prevY = 0;
+        
+        for (int i = 0; i < tspan.getChildNodes().getLength(); i++) {
+            org.w3c.dom.Node tspanContentNode = tspan.getChildNodes().item(i);
+            String text = tspanContentNode.getTextContent();
+            
+            org.w3c.dom.Element tspanChildElement = (org.w3c.dom.Element) tspanContentNode;
+            
+            double x = Double.parseDouble(tspan.getAttributes().getNamedItem("x").getNodeValue());
+            double y = Double.parseDouble(tspan.getAttributes().getNamedItem("y").getNodeValue());
+
+            Text textPane = new Text(text);
+            
+            if ((prevX != x) && (prevY != y)) {
+                HBox line = new HBox(textPane);
+                line.setTranslateX(x);
+                line.setTranslateY(y);
+                parent.Add(line);
+            }
+            else if (parent.getChildren().size() > 0) {
+                HBox lastItem = (HBox) parent.getChildren().get(parent.getChildren().size() - 1);
+                lastItem.getChildren().add(textPane);
+            }
+            
+            prevX = x;
+            prevY = y;
+            
+            // Read CSS Styles
+            String textElementStyle = this._getAttributeValueAsString(textElement, "style");
+            
+            if (textElementStyle != null) {
+                this._readSvgObjectStyle(textElementStyle, textPane, parent);
+            }
+            
+            if (tspan.getAttributes() != null) {
+                if (tspan.getAttributes().getNamedItem("style").getNodeValue() != null) {
+                    String parentStyle = tspan.getAttributes().getNamedItem("style").getNodeValue();
+                    this._readSvgObjectStyle(parentStyle, textPane, parent);
+                }
+            }
+            
+            String localStyle = this._getAttributeValueAsString(tspanChildElement, "style");
+            
+            if (localStyle != null) {
+                this._readSvgObjectStyle(localStyle, textPane, parent);
+            }
+        }
+    }
+    
     public void Add(Pane child, Pane parent) {
         parent.getChildren().add(child);
     }
@@ -1752,17 +1832,30 @@ public class Svg extends Pane {
         return this._height;
     }
     
-    private void _addToStyleHistory(String styleClass, Shape shape) {
+    private void _addToStyleHistory(String styleClass, Shape shape) {  
         if ((styleClass != null) && !styleClass.trim().equals("")) {
-            for (StyleHistory currentStyle : this._styleHistory) {
-                if (currentStyle.equals(styleClass)) {
-                    return;
+            if (styleClass.split(" ").length == 1) {
+                for (StyleHistory currentStyle : this._styleHistory) {
+                    if (currentStyle.equals(styleClass)) {
+                        return;
+                    }
+                }
+                
+                StyleHistory history = new StyleHistory(styleClass);
+                history.AddShape(shape);
+                this._styleHistory.add(history);
+            }
+            else if (styleClass.split(" ").length > 1) {
+                String[] classes = styleClass.split(" ");
+                
+                for (String currentStyleClass : classes) {
+                    if (!currentStyleClass.equals(styleClass)) {
+                        StyleHistory history = new StyleHistory(currentStyleClass);
+                        history.AddShape(shape);
+                        this._styleHistory.add(history);
+                    }
                 }
             }
-
-            StyleHistory history = new StyleHistory(styleClass);
-            history.AddShape(shape);
-            this._styleHistory.add(history);
         }
     }
     
