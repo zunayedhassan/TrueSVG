@@ -5,8 +5,8 @@ import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.List;
 import javafx.embed.swing.SwingFXUtils;
-import javafx.geometry.Insets;
 import javafx.scene.layout.Pane;
 import javax.xml.parsers.ParserConfigurationException;
 import javafx.scene.paint.Color;
@@ -30,15 +30,13 @@ import javafx.scene.shape.Path;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.image.WritableImage;
-import javafx.scene.layout.Background;
-import javafx.scene.layout.BackgroundFill;
-import javafx.scene.layout.CornerRadii;
 import javafx.scene.layout.HBox;
 import javafx.scene.shape.QuadCurveTo;
 import javafx.scene.shape.CubicCurveTo;
 import javafx.scene.shape.Line;
 import javafx.scene.shape.Polygon;
 import javafx.scene.shape.Polyline;
+import javafx.scene.text.Font;
 import javafx.scene.transform.Shear;
 import javafx.scene.text.Text;
 import javax.imageio.ImageIO;
@@ -1073,12 +1071,59 @@ public class Svg extends Pane {
             // Font Family
             else if (propertyName.equals("font-family")) {
                 // Example: font-family:sans-serif
-                shape.setStyle(shape.getStyle() + "-fx-font-family: " + propertyValue + ";");
+                if (propertyValue.contains("\'")) {
+                    propertyValue = propertyValue.split("\'")[1];
+                    
+                    String fontStyle = null;
+                    
+                    if (propertyValue.contains("-")) {
+                        propertyValue = propertyValue.split("-")[0];
+                        
+                        if (propertyValue.split("-").length > 1) {
+                            fontStyle = propertyValue.split("-")[1];
+                        }
+                    }
+                    
+                    ArrayList<String> fontFamily = new ArrayList<>();
+                    boolean isLastCharaterWasUppercase = false;
+                    
+                    for (int i = 0; i < propertyValue.length(); i++) {
+                        String character = null;
+                        
+                        if (Character.isUpperCase(propertyValue.charAt(i))) {
+                            if (isLastCharaterWasUppercase && Character.isUpperCase(propertyValue.charAt(i))) {
+                                character = Character.toString(propertyValue.charAt(i));
+                            }
+                            else {
+                                character = " " + Character.toString(propertyValue.charAt(i));
+                            }
+                        }
+                        else {
+                            character = Character.toString(propertyValue.charAt(i));
+                        }
+                        
+                        fontFamily.add(character);
+                        
+                        isLastCharaterWasUppercase = Character.isUpperCase(propertyValue.charAt(i));
+                    }
+                    
+                    propertyValue = "";
+                    
+                    for (String character : fontFamily) {
+                        propertyValue += character;
+                    }
+                    
+                    propertyValue = propertyValue.trim();
+                    
+                    Text textFX = (Text) shape;
+                    textFX.setFont(Font.font(propertyValue));
+                }
+                else {
+                    shape.setStyle(shape.getStyle() + "-fx-font-family: " + propertyValue + ";");
+                }
             }
         }
     }
-    
-    
     
     private double _getAttributeValueAsDouble(Element element, String attribute) {
         return this._getAttributeValueAsDouble(element, attribute, 0.0);
