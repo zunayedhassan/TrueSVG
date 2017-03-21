@@ -5,7 +5,6 @@ import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.List;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.scene.layout.Pane;
 import javax.xml.parsers.ParserConfigurationException;
@@ -1086,13 +1085,20 @@ public class Svg extends Pane {
                     
                     ArrayList<String> fontFamily = new ArrayList<>();
                     boolean isLastCharaterWasUppercase = false;
+                    int count = 0;
                     
                     for (int i = 0; i < propertyValue.length(); i++) {
-                        String character = null;
+                        String character = "";
+                        
+                        if (count == 1) {
+                            character = " ";
+                            count = 0;
+                        }
                         
                         if (Character.isUpperCase(propertyValue.charAt(i))) {
                             if (isLastCharaterWasUppercase && Character.isUpperCase(propertyValue.charAt(i))) {
-                                character = Character.toString(propertyValue.charAt(i));
+                                character += Character.toString(propertyValue.charAt(i));
+                                ++count;
                             }
                             else {
                                 character = " " + Character.toString(propertyValue.charAt(i));
