@@ -1707,6 +1707,8 @@ public class Svg extends Pane {
                 String text = node.getTextContent();
                 Text textPane = new Text(text);
                 parent.Add(textPane);
+                
+                this._addToStyleHistory(element, textPane);
             }
             //  <text x="0" y="0"><tspan x="14.363094" y="21.077381">Hello World</tspan></text>
             else if (node.getNodeType() == Node.ELEMENT_NODE) {
